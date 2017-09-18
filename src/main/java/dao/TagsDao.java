@@ -49,4 +49,14 @@ public class TagsDao {
     public ReceiptsRecord verifyId(Integer id){
         return dsl.selectFrom(RECEIPTS).where(RECEIPTS.ID.eq(id)).fetchOne();
     }
+
+    public List<String> getTagsForReceiptId(Integer receiptId) {
+        List<String> tags = null;
+        if (receiptId != null) {
+            tags = dsl
+                    .select(TAGS.TAG).from(TAGS)
+                    .where(TAGS.ID.eq(receiptId)).fetch(TAGS.TAG);
+        }
+        return tags;
+    }
 }

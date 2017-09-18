@@ -2,14 +2,18 @@ package controllers;
 
 import api.CreateReceiptRequest;
 import api.ReceiptResponse;
+import api.ReceiptWithTags;
 import dao.ReceiptDao;
+import dao.TagsDao;
 import generated.tables.records.ReceiptsRecord;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static java.util.stream.Collectors.toList;
 
@@ -29,10 +33,27 @@ public class ReceiptController {
     }
 
     @GET
-    public List<ReceiptResponse> getReceipts() {
+    public List<ReceiptWithTags> getReceipts() {
+        List<ReceiptWithTags> allReceipts = new ArrayList<>();
         List<ReceiptsRecord> receiptRecords = receipts.getAllReceipts();
+        for (ReceiptsRecord receiptsRecord : receiptRecords) {
+            List<String> tags = receipts.getTagsForReceiptId(receiptsRecord.getId());
+            allReceipts.add(new ReceiptWithTags(receiptsRecord, tags));
+        }
         System.out.println(receiptRecords.size());
-        return receiptRecords.stream().map(ReceiptResponse::new).collect(toList());
+        return allReceipts;
+    }
+
+
+    @GET
+    @Path("/{receiptId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public List<String> getReceiptsWithTags(@PathParam("receiptId") Integer id){
+        ReceiptsRecord receipt = receipts.getReceiptWithId(id);
+        List<String> tags = new ArrayList<String>();
+        tags = receipts.getTagsForReceiptId(id);
+       // ReceiptWithTags test = new ReceiptWithTags(receipt,tags);
+        return tags;
     }
 
 }
