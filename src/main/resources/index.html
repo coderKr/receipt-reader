@@ -47,7 +47,7 @@
             display:grid;
             background: aliceblue;
             border:1px solid black;
-            width:25%;
+            <!--width:25%;-->
             padding-left: 5px;
         }
 
@@ -55,7 +55,7 @@
             width:35%;
         }
 
-        .value,.time{
+        .amount,.time{
             width:15%;
         }
 
@@ -129,10 +129,10 @@
             const api = ""; // <- do not need a root api URL if this page is served directly by the API
             updateReceiptsTable();
 
-            $('#receiptList').on('click','.close-icon', function () {
-                 var tagToRemove = $(this).parent()[0].innerText.slice(0,-1);
-                 var receiptId =$(this).parent().parent().parent()[0].id;
-                 var keepReferenceOfRow = $(this).parent();
+            $('#receiptList').on('click','.tagValue', function () {
+                 var tagToRemove = $(this)[0].innerText.slice(0,-1);
+                 var receiptId =$(this).parent().parent()[0].id;
+                 var keepReferenceOfRow = $(this);
                  $.put(api + "/tags/" +  tagToRemove, receiptId, function(){
                    keepReferenceOfRow.remove();
                  },"application/json");
@@ -169,48 +169,54 @@
                 $.getJSON(api+"/receipts", function(receipts){
                 for(var i=0; i < receipts.length; i++) {
                     var receipt = receipts[i];
-                            $(`<div id="${receipt.id}" class="receipt"><div class="time">${receipt.created}</div><div class="merchant">${receipt.merchantName}</div><div  class="amount">${receipt.value}</div><div class="tags"><button id="addtag${receipt.id}" class="add-tag">Add +</button></div>`)
-                            .appendTo($("#receiptList"));
-                            $(".add-tag").show();
-                            if(receipt.tags.length > 0){
-                                receipt.tags.forEach(function(tag){
-                                    var newTag = $(`<span class="tagValue">${tag}<span class="close-icon">X</span></span>`);
-                                    newTag.insertBefore($("#addtag" + receipt.id));
-                                });
-                            }
-                         $("#addtag" + receipt.id).on('click', function (){
-                                var inputTag = $(`<input type='text' class="tag_input">`);
-                                $(this).hide();
-                                inputTag.on('keyup', function (e) {
-                                    if (e.keyCode == 13) {
-                                        var receiptId = inputTag.parent().parent()[0].id;
-                                        var newTag = $(`<span class="tagValue">${ $(".tag_input").val()}<span class="close-icon">X</span></span>`);
-                                        var valueToInput =  $(".tag_input").val();
-                                        var isDuplicate = false;
-                                        var txt;
-                                        $("#"+receiptId+' .tagValue').each(function() {
-                                            txt = $(this)[0].outerText.slice(0,-1);
-                                            if (txt === valueToInput){
-                                                console.log("Duplicate! Can't insert!");
-                                                isDuplicate = true;
-                                            }
-                                        });
-                                        if(!isDuplicate){
-                                            var keepThisRef = $(this);
-                                            $.put(api + "/tags/" +  $(".tag_input").val(), receiptId, function(){
-                                                newTag.insertBefore(keepThisRef);
-                                                inputTag.remove();
-                                                $("#addtag" + receiptId).show();
-                                            }, "application/json");
-                                        }
-                                    }
-                                });
-                            // $(this).show();
-                            inputTag.insertBefore(this);
-                            });                   
+                    appendToReceipts(receipt)                
                         }
                  }).fail(function(){
                  });
+
+           }
+
+           function appendToReceipts(receipt)
+           {
+            $(`<div id="${receipt.id}" class="receipt"><div class="time">${receipt.created}</div><div class="merchant">${receipt.merchantName}</div><div  class="amount">${receipt.value}</div><div class="tags"><button id="addtag${receipt.id}" class="add-tag">Add +</button></div>`)
+            .appendTo($("#receiptList"));
+            $(".add-tag").show();
+            if(receipt.tags && receipt.tags.length > 0){
+                receipt.tags.forEach(function(tag){
+                    var newTag = $(`<span class="tagValue">${tag}<span class="close-icon">X</span></span>`);
+                    newTag.insertBefore($("#addtag" + receipt.id));
+                });
+            }
+            $("#addtag" + receipt.id).on('click', function (){
+                var inputTag = $(`<input type='text' class="tag_input">`);
+                $(this).hide();
+                inputTag.on('keyup', function (e) {
+                    if (e.keyCode == 13) {
+                        var receiptId = inputTag.parent().parent()[0].id;
+                        var newTag = $(`<span class="tagValue">${ $(".tag_input").val()}<span class="close-icon">X</span></span>`);
+                        var valueToInput =  $(".tag_input").val();
+                        var isDuplicate = false;
+                        var txt;
+                        $("#"+receiptId+' .tagValue').each(function() {
+                            txt = $(this)[0].outerText.slice(0,-1);
+                            if (txt === valueToInput){
+                                console.log("Duplicate! Can't insert!");
+                                isDuplicate = true;
+                            }
+                        });
+                        if(!isDuplicate){
+                            var keepThisRef = $(this);
+                            $.put(api + "/tags/" +  $(".tag_input").val(), receiptId, function(){
+                                newTag.insertBefore(keepThisRef);
+                                inputTag.remove();
+                                $("#addtag" + receiptId).show();
+                            }, "application/json");
+                        }
+                    }
+                });
+                // $(this).show();
+                inputTag.insertBefore(this);
+            });   
 
            }
 
@@ -241,7 +247,14 @@
                 data: JSON.stringify(data),
                 contentType:"application/json",
                 success: function (data) {
-                    updateReceiptsTable();
+                    receipt = {
+                        "id":data,
+                        "merchantName": $("#merchant").val(),
+                        "value": $("#amount").val(),
+                        "tags":[],
+                        "created":""
+                    }
+                    appendToReceipts(receipt);
                     $("#merchant").val("");
                     $("#amount").val("");
                     $(".containerAdd").hide();
@@ -278,7 +291,7 @@
         <div class="header">
             <div class="timeHead">Time</div>
             <div class="merchantHead">Merchant</div>
-            <div class="valueeHead">$</div>
+            <div class="valueHead">$</div>
             <div class="tagsHead">Tags</div>
         </div>
     </div>
