@@ -13,6 +13,10 @@ ADD  build/distributions/receipt-reader.tar  /
 # add it explicitly
 ADD appconfig.yml /receipt-reader/
 
+# Add your GCP Service Account API File to the Docker Image
+ADD gc_api_file.json /receipt-reader/gc_api_file.json
+ENV GOOGLE_APPLICATION_CREDENTIALS=/receipt-reader/gc_api_file.json
+
 # Convenience if we ever want to log into the image and snoop around
 WORKDIR /receipt-reader
 

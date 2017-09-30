@@ -95,6 +95,19 @@
             background: yellow;
             float: right;
         }
+
+        #containerCamera {
+            width: 500px;
+            height: 450px;
+            margin-bottom: 10px;
+            background: yellow;
+            border:1px solid black;
+        }
+
+        #vidwrap,.vidwrap{
+            width: 100%;
+            height: 90%;
+        }
         .inputBox {
             width: 90%;
             border: 1px solid black;
@@ -102,11 +115,11 @@
             margin: 5px;
         }
 
-        #save-receipt {
+        #save-receipt,#take-pic {
             background-color: aquamarine;
         }
 
-        #cancel-receipt {
+        #cancel-receipt,#take-pic-cancel {
             background-color: darkorange;
         }
 
@@ -120,12 +133,17 @@
             border-radius: 30px;
         }
 
+        #start-camera{
+          margin-right: 5px;
+        }
+
     </style>
     <script>
         // This is the idiomatic way to ensure that JQuery does not
         // execute until the page has loaded
         $(function(){
-            $(".containerAdd").hide();
+            $("#containerAdd").hide();
+            $("#containerCamera").hide();
             const api = ""; // <- do not need a root api URL if this page is served directly by the API
             updateReceiptsTable();
 
@@ -221,7 +239,7 @@
            }
 
            $("#add-receipt").on('click', function(){
-              $(".containerAdd").show();
+              $("#containerAdd").show();
 
            });
 
@@ -232,14 +250,6 @@
                     "merchant":merchant,
                     "amount":amount
                 }
-               //  $.post(api+"/receipts", data, function(response) {
-               //      $(".containerAdd").hide();
-               //      updateReceiptsTable();
-               //  }, 'application/json')
-               //  .done(function(msg){  })
-               //  .fail(function(xhr, status, error) {
-               //      console.log(xhr,status,error);
-               // });
 
                $.ajax({
                 url: api+"/receipts",
@@ -257,7 +267,7 @@
                     appendToReceipts(receipt);
                     $("#merchant").val("");
                     $("#amount").val("");
-                    $(".containerAdd").hide();
+                    $("#containerAdd").hide();
                 },
                 error: function(XMLHttpRequest, textStatus, errorThrown) {
                     console.log(errorThrown);
@@ -268,9 +278,98 @@
            $("#cancel-receipt").on('click', function(){
               $("#merchant").val("");
               $("#amount").val("");
-              $(".containerAdd").hide();
+              $("#containerAdd").hide();
+           });
+
+            $("#start-camera").on('click', function(){
+              $("#containerCamera").show();
+              startVideo();
+              $('video').on('play', () => $('#snapshot').prop('disabled', false));
+              $('#take-pic').on('click', takeSnapshot);
+           });
+
+           $("#take-pic-cancel").on('click', function(){
+              $("#containerCamera").hide();
+              $('video').empty();
+              $('video')[0].srcObject.getVideoTracks()[0].stop()
            });
         });
+
+
+        let imageCapture;
+        function attachMediaStream(mediaStream) {
+            $('video')[0].srcObject = mediaStream;
+            // Saving the track allows us to capture a photo
+            const track = mediaStream.getVideoTracks()[0];
+            imageCapture = new ImageCapture(track);
+        }
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({video: {facingMode: {exact: "environment"}}})
+                .then(attachMediaStream)
+                .catch(error => {
+                    navigator.mediaDevices.getUserMedia({video: true})
+                        .then(attachMediaStream)
+                        .catch(error => {
+                            console.log('you are fooked');
+                        })
+                })
+        }
+
+       imageCapture.grabFrame()
+            .then(img => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                canvas.getContext('2d').drawImage(img, 0, 0);
+                const base64EncodedImageData = canvas.toDataURL('image/png').split(',')[1];
+                $.ajax({
+                    url: "/images",
+                    type: "POST",
+                    data: base64EncodedImageData,
+                    contentType: "text/plain",
+                    success: function() {},
+               })
+                .then(response => {
+                    $('video').after(`<div>got response: <pre>${JSON.stringify(response)}</pre></div>`);
+                })
+                .always(() => console.log('request complete'));
+                // For debugging, you can uncomment this to see the frame that was captured
+                // $('BODY').append(canvas);
+            });
+
+        function takeSnapshot() {
+            // create a CANVAS element that is same size as the image
+            imageCapture.grabFrame()
+                .then(img => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    canvas.getContext('2d').drawImage(img, 0, 0);
+                    const base64EncodedImageData = canvas.toDataURL('image/png').split(',')[1];
+                    $.ajax({
+                        url: "/images",
+                        type: "POST",
+                        data: base64EncodedImageData,
+                        contentType: "text/plain",
+                        success: function() {},
+                   })
+                    .then(response => {
+                        $("#containerCamera").hide();
+                        $("#containerAdd").show();
+                        $("#merchant").val(response.merchantName);
+                        $("#amount").val(JSON.stringify(response.amount));
+                        $('video').after(`<div>got response: <pre>${JSON.stringify(response)}</pre></div>`);
+                        $('video').stop();
+                        $('video').src = "";
+                       $('video')[0].srcObject.getVideoTracks()[0].stop()
+                        <!--vid.pause();-->
+                        imageCapture.track.stop();
+                    })
+                    .always(() => console.log('request complete'));
+                    // For debugging, you can uncomment this to see the frame that was captured
+                    // $('BODY').append(canvas);
+                }).catch(function(err) { console.log(err.name + ": " + err.message); });
+        }
 
     </script>
 </head>
@@ -279,12 +378,22 @@
 <DIV id="container">
     <h1>My receipts</h1>
     <div id="add-receipt" class="button">+</div>
-    <div class="containerAdd">
+    <div class="containerAdd" id="containerAdd">
         <input class="inputBox" id="merchant" placeholder="merchant"></input>
         <input class="inputBox" id="amount" placeholder="amount"></input>
         <div class="modalbuttons">
             <button id="save-receipt">Save</button>
             <button id="cancel-receipt">Close</button>
+        </div>
+    </div>
+    <div id="start-camera" class="button">Camera</div>
+    <div class="containerAdd" id="containerCamera">
+        <div id="vidwrap">
+            <video autoplay class="vidwrap"></video>
+        </div>
+        <div class="modalbuttons">
+            <button id="take-pic">Snap</button>
+            <button id="take-pic-cancel">Close</button>
         </div>
     </div>
     <div id="receiptList">
